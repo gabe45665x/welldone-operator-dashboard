@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WELLDONE OPERATOR — GALAXY MAP（星系地圖版）</title>
+<style>
+  :root{
+    --bg:#02030a; --panel:rgba(14,16,24,.6); --panel-line:rgba(255,255,255,.08);
+    --txt:#cdd3e0; --txt-dim:#7d8596; --accent:#ff8a3c; --good:#3cff9e; --blue:#6b9bff; --cyan:#46e0ff;
+    --font:-apple-system,"PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);overflow:hidden;font-family:var(--font);color:var(--txt)}
+  #space{position:fixed;inset:0;z-index:0;
+    background:
+      radial-gradient(60% 50% at 56% 50%, rgba(40,30,70,.30), transparent 72%),
+      radial-gradient(50% 50% at 18% 30%, rgba(30,40,80,.18), transparent 70%),
+      #02030a;}
+  #gl{position:fixed;inset:0;z-index:1;display:block;cursor:grab}
+  #vignette{position:fixed;inset:0;z-index:2;pointer-events:none;
+    background:radial-gradient(125% 100% at 50% 48%, transparent 58%, rgba(0,0,0,.6) 100%)}
+  #labels{position:fixed;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;text-align:center;
+    text-shadow:0 0 8px rgba(0,0,0,.9),0 1px 3px rgba(0,0,0,.9);transition:opacity .3s}
+  .lbl b{display:block;font-size:13px;font-weight:600;letter-spacing:.04em;color:#e7ecf6}
+  .lbl i{display:block;font-size:10px;font-style:italic;color:#9fb0cc;letter-spacing:.06em;margin-top:1px}
+  .lbl.sm b{font-size:11px}.lbl.sm i{font-size:9px}
+  .lbl.tiny b{font-size:9.5px;font-weight:500;color:#bcd0ee}.lbl.tiny i{display:none}
+  .lbl.faint b{font-size:12px;font-weight:500;color:rgba(190,200,220,.5);letter-spacing:.22em}
+  .lbl.faint i{color:rgba(150,165,195,.45);letter-spacing:.16em}
+  .lbl.cl b{color:#bfe0ff}
+  #loading{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;color:var(--txt-dim);font-size:13px;letter-spacing:.1em}
+  .hud{position:fixed;z-index:5;pointer-events:none}
+  .panel{background:var(--panel);border:1px solid var(--panel-line);border-radius:14px;
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    box-shadow:0 8px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);padding:12px 14px}
+  .eyebrow{font-size:10px;letter-spacing:.18em;color:var(--txt-dim);text-transform:uppercase;margin-bottom:8px}
+  .row{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
+  .muted{color:var(--txt-dim)}
+  .num{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}
+  #left{left:18px;top:64px;width:188px;display:flex;flex-direction:column;gap:12px}
+  .brand{font-size:14px;font-weight:700;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+  .brand .logo{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--accent),#ff5a5a);box-shadow:0 0 14px rgba(255,138,60,.7)}
+  .brand small{display:block;font-size:9px;letter-spacing:.22em;color:var(--txt-dim);font-weight:500}
+  .nav .row.active{color:#fff}
+  .cost{display:flex;align-items:center;gap:10px}
+  .cost .ico{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#c43c00);flex:none;box-shadow:0 0 14px rgba(255,90,0,.5)}
+  .cost b{font-size:13px}.cost p{font-size:10px;color:var(--txt-dim);line-height:1.4;margin-top:2px}
+  #top{left:50%;top:18px;transform:translateX(-50%);display:flex;gap:7px;flex-wrap:wrap;justify-content:center;max-width:80vw}
+  .chip{display:flex;align-items:center;gap:7px;font-size:11px;padding:6px 10px;border-radius:11px;
+    background:rgba(20,22,32,.6);border:1px solid var(--panel-line);backdrop-filter:blur(10px)}
+  .chip .num{font-size:9px;color:var(--txt-dim);margin-left:4px}
+  #right{right:18px;top:64px;width:194px;display:flex;flex-direction:column;gap:12px}
+  .msg{font-size:11px;line-height:1.5;color:var(--txt-dim)}.msg b{color:var(--txt)}
+  .deck{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:4px}
+  .deck button{pointer-events:auto;font:inherit;font-size:11px;color:var(--txt);
+    background:rgba(255,255,255,.04);border:1px solid var(--panel-line);border-radius:9px;padding:8px 6px;cursor:pointer;transition:.15s}
+  .deck button:hover{background:rgba(255,138,60,.15);border-color:var(--accent);color:#fff;box-shadow:0 0 16px rgba(255,138,60,.25)}
+  #chat{left:50%;bottom:74px;transform:translateX(-50%);width:344px;max-width:80vw}
+  #chat .bubble{font-size:11.5px;line-height:1.55;color:var(--txt-dim)}#chat .bubble b{color:var(--txt)}
+  #inputbar{display:flex;gap:8px;margin-top:10px;pointer-events:auto}
+  #inputbar input{flex:1;font:inherit;font-size:12px;color:var(--txt);background:rgba(255,255,255,.05);
+    border:1px solid var(--panel-line);border-radius:20px;padding:9px 14px;outline:none}
+  #inputbar input::placeholder{color:var(--txt-dim)}
+  #inputbar .send{width:34px;height:34px;border-radius:50%;border:none;flex:none;cursor:pointer;background:linear-gradient(135deg,#8b5bff,#5b8cff);box-shadow:0 0 16px rgba(120,90,255,.5)}
+  #clock{right:24px;bottom:24px;display:flex;align-items:center;gap:10px;background:rgba(20,22,32,.6);
+    border:1px solid var(--panel-line);border-radius:22px;padding:8px 16px;font-variant-numeric:tabular-nums;backdrop-filter:blur(12px)}
+  #clock .t{font-size:22px;font-weight:600;letter-spacing:.04em}#clock .s{font-size:11px;color:var(--txt-dim)}
+  #zoom{right:24px;bottom:74px;z-index:5;display:flex;flex-direction:column;gap:7px;pointer-events:auto;align-items:center}
+  #zoom button{width:36px;height:36px;border-radius:50%;border:1px solid var(--panel-line);
+    background:rgba(20,22,32,.6);color:var(--txt);font-size:19px;line-height:1;cursor:pointer;
+    backdrop-filter:blur(12px);transition:.15s;display:flex;align-items:center;justify-content:center}
+  #zoom button:hover{border-color:var(--accent);color:#fff;box-shadow:0 0 14px rgba(255,138,60,.3)}
+  #zoom .zlabel{font-size:8px;letter-spacing:.14em;color:var(--txt-dim);writing-mode:vertical-rl;margin-top:2px}
+  #density{left:50%;bottom:24px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:.12em;color:var(--txt-dim)}
+  #density .bar{width:160px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+  #density .fill{height:100%;width:54%;background:linear-gradient(90deg,var(--blue),var(--good));border-radius:3px;box-shadow:0 0 10px rgba(60,255,158,.5)}
+  @media(max-width:760px){#left,#right{display:none}#top{max-width:96vw}}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+  <div id="space"></div>
+  <canvas id="gl"></canvas>
+  <div id="vignette"></div>
+  <div id="labels"></div>
+  <div id="loading">載入 three.js 中…（需連網一次；若卡住請用桌面瀏覽器開）</div>
+
+  <div id="top" class="hud"></div>
+
+  <div id="left" class="hud">
+    <div class="panel">
+      <div class="brand"><span class="logo"></span>WELLDONE<small>OPERATOR</small></div>
+      <div class="nav" style="margin-top:10px">
+        <div class="row active"><span class="dot" style="background:var(--accent)"></span>圖譜 Graph</div>
+        <div class="row muted"><span class="dot" style="background:#444"></span>價值 Value</div>
+        <div class="row muted"><span class="dot" style="background:#444"></span>重疊 Overlap</div>
+        <div class="row muted"><span class="dot" style="background:#444"></span>結構 Activity</div>
+      </div>
+    </div>
+    <div class="panel"><div class="cost"><span class="ico"></span><div><b>AI 成本</b><p>本月 TOKENS<br>累計 即時運算</p></div></div></div>
+    <div class="panel">
+      <div class="row"><span class="dot" style="color:var(--accent);background:var(--accent)"></span>claude<span class="num">HIGH</span></div>
+      <div class="row"><span class="dot" style="color:var(--good);background:var(--good)"></span>codex<span class="num muted">MID</span></div>
+      <div class="row"><span class="dot" style="color:var(--blue);background:var(--blue)"></span>gemini<span class="num muted">LOW</span></div>
+    </div>
+    <div class="panel">
+      <div class="eyebrow">互動率 · FOCUS</div>
+      <div class="row">在線<span class="num" style="color:var(--good)" id="kOnline">11</span></div>
+      <div class="row">活躍節點<span class="num" style="color:var(--accent)" id="kActive">233</span></div>
+      <div class="row">待命<span class="num">0</span></div>
+      <div class="row">NODE / NTE<span class="num" style="color:var(--accent)">7,800</span></div>
+    </div>
+  </div>
+
+  <div id="right" class="hud">
+    <div class="panel"><div class="eyebrow">claude · the-assistant</div><div class="msg"><b>claude</b> 已連上 4 個新節點，社群數據抓取中…</div></div>
+    <div class="panel"><div class="row"><b>RunBoss</b><span class="num" style="color:var(--good)">NTE 7,800</span></div></div>
+    <div class="panel"><div class="eyebrow">Command Deck</div>
+      <div class="deck"><button>建立節點</button><button>導入社群</button><button>重算佈局</button><button>聚類分析</button><button>價值疊圖</button><button>匯出報告</button></div></div>
+  </div>
+
+  <div id="chat" class="hud"><div class="panel">
+    <div class="bubble"><b>兄弟起床啦！</b>我把社群數據先抓出來了，從目前的節點密度來看，今天大概有 2,180 個新連線。RunBoss 說 MRR 衝到 7,800，要不要先看一下 welldone.ai 的圖譜結構？</div>
+    <div id="inputbar"><input placeholder="輸入指令給 operator…"><button class="send"></button></div>
+  </div></div>
+
+  <div id="zoom"><button id="zIn" title="放大">＋</button><button id="zOut" title="縮小">－</button><span class="zlabel">滾輪縮放 · 拖曳平移 · 雙擊復位</span></div>
+  <div id="clock" class="hud"><div class="t" id="cTime">02:43</div><div class="s" id="cSec">07</div></div>
+  <div id="density" class="hud"><span id="dNum">—</span><div class="bar"><div class="fill" id="dFill"></div></div><span>運輸 · FLOW</span></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+const cv=document.getElementById('gl');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));  // 限制像素比，拖移更順
+renderer.setClearColor(0x02030a,0);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,1,16000);
+camera.position.set(0,0,820);
+
+document.getElementById('loading').style.display='none';
+
+const comp=new EffectComposer(renderer);
+comp.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.3,0.6,0.34);
+comp.addPass(bloom);
+function resize(){renderer.setSize(innerWidth,innerHeight);comp.setSize(innerWidth,innerHeight);
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+
+// ===== 小工具 =====
+const hex2rgb=h=>[(h>>16)&255,(h>>8)&255,h&255];
+const mixRGB=(a,b,t)=>[a[0]+(b[0]-a[0])*t|0,a[1]+(b[1]-a[1])*t|0,a[2]+(b[2]-a[2])*t|0];
+const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+function texFromCanvas(c){const t=new THREE.Texture(c);t.needsUpdate=true;t.minFilter=THREE.LinearFilter;return t;}
+
+// 柔光點
+function glowTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
+  const g=x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(255,255,255,.6)');
+  g.addColorStop(.55,'rgba(255,255,255,.14)');g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g;x.fillRect(0,0,128,128);return texFromCanvas(c);}
+const TEX=glowTex();
+
+// 帶十字星芒的亮星（給星座 / 天狼星）
+function starTex(){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+  const cx=128;x.translate(cx,cx);
+  let g=x.createRadialGradient(0,0,0,0,0,46);
+  g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.4,'rgba(210,230,255,.7)');g.addColorStop(1,'rgba(120,170,255,0)');
+  x.fillStyle=g;x.beginPath();x.arc(0,0,46,0,7);x.fill();
+  x.globalCompositeOperation='lighter';
+  for(const ang of [0,Math.PI/2,Math.PI/4,-Math.PI/4]){const len=ang%(Math.PI/2)===0?120:64;
+    x.save();x.rotate(ang);const lg=x.createLinearGradient(-len,0,len,0);
+    lg.addColorStop(0,'rgba(180,210,255,0)');lg.addColorStop(.5,'rgba(220,235,255,.9)');lg.addColorStop(1,'rgba(180,210,255,0)');
+    x.fillStyle=lg;x.fillRect(-len,-1.4,len*2,2.8);x.restore();}
+  return texFromCanvas(c);}
+const STAR=starTex();
+
+// ===== 程序化螺旋星系貼圖 =====
+function galaxyTex(o){
+  const S=600,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  const cx=S/2,cy=S/2,maxR=S*0.46;
+  const coreCol=hex2rgb(o.core), armCol=hex2rgb(o.arm), midCol=mixRGB(coreCol,armCol,0.5);
+  const arms=o.arms,twist=o.twist;
+  const spiral=(r,arm,off)=>arm/arms*Math.PI*2 + twist*(r/maxR) + (off||0);
+  // 暈
+  let g=x.createRadialGradient(cx,cy,0,cx,cy,maxR);
+  g.addColorStop(0,rgba(coreCol,0.40));g.addColorStop(.28,rgba(midCol,0.10));
+  g.addColorStop(.65,rgba(armCol,0.03));g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g;x.beginPath();x.arc(cx,cy,maxR,0,7);x.fill();
+  // 旋臂星點（更密：~1.8x，貼著臂中線 + 稀疏瀰漫場）
+  x.globalCompositeOperation='lighter';
+  const n=Math.round(o.stars*1.8);
+  for(let i=0;i<n;i++){
+    const t=Math.pow(Math.random(),0.6), r=t*maxR;
+    const arm=Math.floor(Math.random()*arms);
+    const tight=Math.random()<0.74, spread=(o.irregular?1.5:1.0);
+    const jit=tight?(Math.random()-.5)*0.30*(1.25-t)*spread:(Math.random()-.5)*1.5*spread;
+    const ang=spiral(r,arm,jit);
+    const px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r;
+    const col=mixRGB(coreCol,armCol,Math.min(1,t*1.2));
+    const a=tight?(0.5+Math.random()*0.5)*(1-t*0.2):(0.16+Math.random()*0.2);
+    const sz=(Math.random()<0.045?2.0:1.0)*(0.7+(1-t)*0.9);
+    x.fillStyle=rgba(col,a);x.fillRect(px-sz/2,py-sz/2,sz,sz);
+  }
+  // 核球
+  g=x.createRadialGradient(cx,cy,0,cx,cy,S*0.17);
+  g.addColorStop(0,'rgba(255,250,232,1)');g.addColorStop(.35,rgba(coreCol,0.85));
+  g.addColorStop(.7,rgba(coreCol,0.22));g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g;x.beginPath();x.arc(cx,cy,S*0.17,0,7);x.fill();
+  // 暗塵帶（更明顯：每臂 2 條，沿螺旋、內緣偏移、寬度漸變）
+  x.globalCompositeOperation='destination-out';
+  if(!o.irregular)for(let k=0;k<arms;k++){
+    for(const lane of [{off:0.16,w:11,op:0.72},{off:0.30,w:5,op:0.45}]){
+      x.save();x.translate(cx,cy);x.beginPath();let first=true;
+      for(let r=S*0.13;r<maxR*0.98;r+=2){const a=spiral(r,k,lane.off);
+        const X=Math.cos(a)*r,Y=Math.sin(a)*r;
+        if(first){x.moveTo(X,Y);first=false;}else x.lineTo(X,Y);}
+      x.lineCap='round';x.lineWidth=lane.w;x.strokeStyle=`rgba(0,0,0,${lane.op})`;x.stroke();x.restore();
+    }
+  }
+  // 亮藍星形成區（HII：粉紅 H-α 暈 + 藍白年輕星團），沿外臂
+  x.globalCompositeOperation='lighter';
+  const hiiN=Math.round(o.stars/60)+(o.irregular?12:6);
+  for(let i=0;i<hiiN;i++){
+    const t=0.32+Math.random()*0.6, r=t*maxR;
+    const arm=Math.floor(Math.random()*arms);
+    const ang=spiral(r,arm,(Math.random()-.5)*(o.irregular?1.2:0.30));
+    const px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r, rad=5+Math.random()*11;
+    let gh=x.createRadialGradient(px,py,0,px,py,rad*1.8);
+    gh.addColorStop(0,'rgba(255,140,205,0.16)');gh.addColorStop(1,'rgba(255,120,190,0)');
+    x.fillStyle=gh;x.beginPath();x.arc(px,py,rad*1.8,0,7);x.fill();
+    let gb=x.createRadialGradient(px,py,0,px,py,rad);
+    gb.addColorStop(0,'rgba(210,235,255,0.85)');gb.addColorStop(.5,'rgba(150,200,255,.4)');gb.addColorStop(1,'rgba(120,180,255,0)');
+    x.fillStyle=gb;x.beginPath();x.arc(px,py,rad,0,7);x.fill();
+    for(let j=0;j<4;j++){const a2=Math.random()*7,rr=Math.random()*rad*0.8;
+      x.fillStyle='rgba(220,240,255,0.9)';x.fillRect(px+Math.cos(a2)*rr,py+Math.sin(a2)*rr,1,1);}
+  }
+  x.globalCompositeOperation='source-over';
+  return texFromCanvas(c);}
+
+// ===== 程序化中央星雲（銀河系）=====
+function nebulaTex(){
+  const S=640,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  const cx=S/2,cy=S/2;x.globalCompositeOperation='lighter';
+  const inner=[255,150,210], mid=[168,92,220], outer=[92,128,255];
+  // 雙旋臂彩色雲團（內粉→中紫→外藍，整體壓暗保留色彩）
+  for(let i=0;i<320;i++){
+    const t=Math.pow(Math.random(),0.55), r=t*S*0.44;
+    const ang=t*6.0 + (i%2)*Math.PI + (Math.random()-.5)*0.9;
+    const px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r*0.9;
+    const col=t<0.34?mixRGB(inner,mid,t/0.34):mixRGB(mid,outer,(t-0.34)/0.66);
+    const rad=18+Math.random()*64*(1-t*0.3);
+    const g=x.createRadialGradient(px,py,0,px,py,rad);
+    g.addColorStop(0,rgba(col,0.055+Math.random()*0.05));g.addColorStop(1,rgba(col,0));
+    x.fillStyle=g;x.beginPath();x.arc(px,py,rad,0,7);x.fill();
+  }
+  // 柔核（非純白）
+  let g=x.createRadialGradient(cx,cy,0,cx,cy,S*0.15);
+  g.addColorStop(0,'rgba(255,228,250,0.34)');g.addColorStop(.45,'rgba(224,164,255,.2)');g.addColorStop(1,'rgba(150,90,220,0)');
+  x.fillStyle=g;x.beginPath();x.arc(cx,cy,S*0.15,0,7);x.fill();
+  // 藍色星形成區亮點
+  for(let i=0;i<220;i++){const t=Math.pow(Math.random(),0.7),r=t*S*0.42;
+    const a=t*6+(i%2)*Math.PI+(Math.random()-.5);
+    const px=cx+Math.cos(a)*r,py=cy+Math.sin(a)*r*0.9;
+    x.fillStyle=`rgba(${150+Math.random()*70|0},${192+Math.random()*50|0},255,${0.4+Math.random()*0.4})`;
+    x.fillRect(px,py,Math.random()<0.12?2:1,1);}
+  return texFromCanvas(c);}
+
+// ===== 中央主角星系貼圖（參考真實旋渦星系：金核 + 藍/粉旋臂 + 棕色暗塵帶）=====
+function heroGalaxyTex(){
+  const S=1024,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  const cx=S/2,cy=S/2,maxR=S*0.48;
+  const G=()=>(Math.random()+Math.random()+Math.random()-1.5)/1.5;
+  const arms=3,twist=3.1;
+  const spiral=(r,arm,off)=>arm/arms*Math.PI*2 + twist*(r/maxR) + (off||0);
+  // A) 奶油金棕盤體（明亮，內金外藍）
+  x.globalCompositeOperation='lighter';
+  let g=x.createRadialGradient(cx,cy,0,cx,cy,maxR);
+  g.addColorStop(0,'rgba(255,236,196,0.6)');g.addColorStop(0.18,'rgba(250,220,170,0.42)');
+  g.addColorStop(0.46,'rgba(212,198,178,0.18)');g.addColorStop(0.74,'rgba(148,164,206,0.06)');g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g;x.beginPath();x.arc(cx,cy,maxR,0,7);x.fill();
+  // B) 旋臂奶油厚度（沿臂柔光 → 可見亮臂帶）
+  for(let i=0;i<800;i++){
+    const t=0.1+Math.pow(Math.random(),0.7)*0.88, r=t*maxR, arm=Math.floor(Math.random()*arms);
+    const ang=spiral(r,arm,G()*0.4), px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r, rad=12+Math.random()*30;
+    const col=t<0.5?[255,228,184]:[182,200,238];
+    const gg=x.createRadialGradient(px,py,0,px,py,rad);
+    gg.addColorStop(0,rgba(col,0.02+Math.random()*0.03));gg.addColorStop(1,rgba(col,0));
+    x.fillStyle=gg;x.beginPath();x.arc(px,py,rad,0,7);x.fill();
+  }
+  // C) 恆星場（密集，內奶油外藍）
+  for(let i=0;i<8200;i++){
+    const t=Math.pow(Math.random(),0.55), r=t*maxR, arm=Math.floor(Math.random()*arms);
+    const tight=Math.random()<0.7, jit=tight?G()*0.30*(1.25-t):G()*1.0;
+    const ang=spiral(r,arm,jit), px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r;
+    const col=t<0.4?mixRGB([255,242,210],[232,232,228],t/0.4):mixRGB([196,212,248],[150,185,255],(t-0.4)/0.6);
+    const a=tight?(0.15+Math.random()*0.22)*(1-t*0.2):(0.06+Math.random()*0.09);
+    const s=Math.random()<0.05?1.9:1;x.fillStyle=rgba(col,a);x.fillRect(px-s/2,py-s/2,s,s);
+  }
+  // D) 粉紅/洋紅 H-α 結（多且亮，由近核心螺旋向外成串 → 參考圖特徵）
+  for(let i=0;i<200;i++){
+    const t=0.15+Math.random()*0.76, r=t*maxR, arm=Math.floor(Math.random()*arms);
+    const ang=spiral(r,arm,G()*0.16), px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r, rad=3.5+Math.random()*8;
+    let gh=x.createRadialGradient(px,py,0,px,py,rad*1.9);
+    gh.addColorStop(0,'rgba(255,76,160,0.55)');gh.addColorStop(.6,'rgba(255,90,170,0.18)');gh.addColorStop(1,'rgba(255,90,170,0)');
+    x.fillStyle=gh;x.beginPath();x.arc(px,py,rad*1.9,0,7);x.fill();
+    let gc=x.createRadialGradient(px,py,0,px,py,rad*0.7);
+    gc.addColorStop(0,'rgba(255,200,230,0.9)');gc.addColorStop(1,'rgba(255,170,215,0)');
+    x.fillStyle=gc;x.beginPath();x.arc(px,py,rad*0.7,0,7);x.fill();
+  }
+  // E) 藍色星團（穿插）
+  for(let i=0;i<80;i++){
+    const t=0.3+Math.random()*0.62, r=t*maxR, arm=Math.floor(Math.random()*arms);
+    const ang=spiral(r,arm,G()*0.2), px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r, rad=4+Math.random()*10;
+    const gb=x.createRadialGradient(px,py,0,px,py,rad);
+    gb.addColorStop(0,'rgba(200,226,255,0.85)');gb.addColorStop(.5,'rgba(140,190,255,.4)');gb.addColorStop(1,'rgba(120,180,255,0)');
+    x.fillStyle=gb;x.beginPath();x.arc(px,py,rad,0,7);x.fill();
+  }
+  // F) 金橙亮核
+  g=x.createRadialGradient(cx,cy,0,cx,cy,S*0.155);
+  g.addColorStop(0,'rgba(255,251,240,1)');g.addColorStop(0.22,'rgba(255,224,150,0.88)');
+  g.addColorStop(0.5,'rgba(244,152,72,0.4)');g.addColorStop(0.82,'rgba(180,110,60,0.1)');g.addColorStop(1,'rgba(160,100,60,0)');
+  x.fillStyle=g;x.beginPath();x.arc(cx,cy,S*0.155,0,7);x.fill();
+  // G) 深棕色暗塵帶（強、細、分支）source-over
+  x.globalCompositeOperation='source-over';
+  const dust=(r0,r1,k,off,w,op)=>{x.save();x.translate(cx,cy);x.beginPath();let f=true;
+    for(let r=r0;r<r1;r+=2){const a=spiral(r,k,off);const X=Math.cos(a)*r,Y=Math.sin(a)*r;
+      if(f){x.moveTo(X,Y);f=false;}else x.lineTo(X,Y);}
+    x.lineCap='round';x.lineWidth=w;x.strokeStyle=`rgba(40,26,17,${op})`;x.stroke();x.restore();};
+  for(let k=0;k<arms;k++){
+    dust(S*0.08,maxR*0.95,k,0.12,11,0.5);
+    dust(S*0.10,maxR*0.9,k,0.24,7,0.4);
+    dust(S*0.10,maxR*0.78,k,-0.05,6,0.36);
+    for(let b=0;b<14;b++){const br=(0.16+Math.random()*0.72)*maxR;dust(br*0.7,br,k,0.1+(Math.random()-.5)*0.95,2+Math.random()*3.2,0.26);}
+  }
+  // 核心湍流暗塵網
+  for(let i=0;i<820;i++){
+    const t=Math.pow(Math.random(),0.55), r=t*maxR*0.52, a=Math.random()*7;
+    const px=cx+Math.cos(a)*r, py=cy+Math.sin(a)*r, rad=3+Math.random()*16*(1-t*0.35);
+    const gg=x.createRadialGradient(px,py,0,px,py,rad);
+    gg.addColorStop(0,`rgba(32,20,12,${0.22+Math.random()*0.34})`);gg.addColorStop(1,'rgba(32,20,12,0)');
+    x.fillStyle=gg;x.beginPath();x.arc(px,py,rad,0,7);x.fill();
+  }
+  // H) 塵帶上補回亮結（粉+藍小點，邊緣鑲星）
+  x.globalCompositeOperation='lighter';
+  for(let i=0;i<1600;i++){
+    const t=Math.pow(Math.random(),0.5), r=t*maxR, arm=Math.floor(Math.random()*arms);
+    const ang=spiral(r,arm,G()*0.14), px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r;
+    const pink=Math.random()<0.22;
+    const col=pink?[255,150,205]:(t<0.4?[255,238,205]:[175,200,255]);
+    x.fillStyle=rgba(col,(0.14+Math.random()*0.24)*(1-t*0.2));x.fillRect(px,py,1,1);
+  }
+  return texFromCanvas(c);}
+
+// ===== 場景群組 =====
+const tilt=new THREE.Group();tilt.rotation.x=0.72;scene.add(tilt);   // 盤面傾斜（略俯視）
+const world=new THREE.Group();tilt.add(world);                        // 轉盤本體（繞盤面法線自轉）
+const labels=[];const labelBox=document.getElementById('labels');
+function addLabel(pos,name,sub,cls){
+  const el=document.createElement('div');el.className='lbl'+(cls?' '+cls:'');
+  el.innerHTML=`<b>${name}</b>${sub?`<i>${sub}</i>`:''}`;
+  labelBox.appendChild(el);labels.push({el,pos:pos.clone()});
+  return labels[labels.length-1];
+}
+
+function makeSprite(tex,blend){const m=new THREE.SpriteMaterial({map:tex,transparent:true,
+  blending:blend||THREE.NormalBlending,depthWrite:false,depthTest:false});
+  return new THREE.Sprite(m);}
+
+// ---- 中央主角星系（真正 3D 傾斜圓盤：Plane Mesh，躺在轉盤平面內，隨轉盤傾斜+旋轉）----
+const NEBPOS=new THREE.Vector3(70,10,0);
+const coreGlow=makeSprite(TEX,THREE.AdditiveBlending);coreGlow.material.color.set(0xffd6a0);
+coreGlow.position.copy(NEBPOS);coreGlow.scale.set(300,300,1);coreGlow.material.opacity=0.2;coreGlow.renderOrder=4;world.add(coreGlow);
+const galaxyCore=new THREE.Mesh(new THREE.PlaneGeometry(620,620),
+  new THREE.MeshBasicMaterial({map:heroGalaxyTex(),transparent:true,depthWrite:false,depthTest:false,blending:THREE.NormalBlending}));
+galaxyCore.position.copy(NEBPOS);galaxyCore.renderOrder=5;world.add(galaxyCore);
+addLabel(new THREE.Vector3(70,-200,0),'銀河系','Milky Way');
+
+// ---- 周邊星系（混合：真實星系名）----
+const GAL=[
+ {name:'仙女座星系',sub:'Andromeda Galaxy',pos:[-560,250,-80],size:360,incl:0.40,rot:-0.5,arms:2,twist:3.6,core:0xfff0d2,arm:0x9fc4ff,stars:1500,spin:0.018,ly:-160},
+ {name:'三角座星系',sub:'Triangulum Galaxy',pos:[-360,140,30],size:150,incl:0.78,rot:0.4,arms:3,twist:2.6,core:0xffe8c2,arm:0xbfe0ff,stars:560,spin:0.03,ly:-95},
+ {name:'M81 波德星系',sub:"Bode's Galaxy",pos:[470,-250,-30],size:235,incl:0.50,rot:-0.4,arms:2,twist:3.2,core:0xfff0d2,arm:0xa9c8ff,stars:1050,spin:0.022,ly:120},
+ {name:'大麥哲倫星系',sub:'Large Magellanic Cloud',pos:[575,-20,-50],size:150,incl:0.66,rot:0.6,arms:1,twist:1.8,core:0xffd9a4,arm:0xffc28c,stars:520,spin:0.024,irregular:true,ly:95},
+ {name:'M51 渦狀星系',sub:'Whirlpool Galaxy',pos:[770,170,-160],size:120,incl:0.84,rot:0.2,arms:2,twist:3.0,core:0xffeccb,arm:0xbcd8ff,stars:430,spin:0.03,dim:0.75,ly:-80},
+];
+const galaxies=[];
+const hubNodes=[];   // 所有要連到中央銀河系的節點
+for(const o of GAL){
+  const sp=makeSprite(galaxyTex(o),THREE.NormalBlending);
+  sp.position.set(o.pos[0],o.pos[1],o.pos[2]);
+  sp.scale.set(o.size,o.size*o.incl,1);
+  sp.material.rotation=o.rot;sp.material.opacity=o.dim||1;sp.renderOrder=5;
+  world.add(sp);galaxies.push({sp,spin:o.spin});
+  hubNodes.push({pos:new THREE.Vector3(o.pos[0],o.pos[1],o.pos[2]),w:1,col:0x9af0ff,sz:14});
+  addLabel(new THREE.Vector3(o.pos[0],o.pos[1]+(o.ly||-90),o.pos[2]),o.name,o.sub,o.size<160?'sm':'');
+}
+// 散布的遠方星系（無標籤，填滿太空；更多、更廣、有大有小）
+for(let i=0;i<56;i++){
+  const o={arms:2+(Math.random()*2|0),twist:2.4+Math.random()*1.4,core:0xffe6c0,arm:0xbcd4ff,stars:90+(Math.random()*130|0),irregular:Math.random()<0.4};
+  const sp=makeSprite(galaxyTex(o),THREE.NormalBlending);
+  sp.position.set((Math.random()-.5)*4400,(Math.random()-.5)*2600,-160-Math.random()*760);
+  const big=Math.random()<0.25;
+  const s=big?(90+Math.random()*80):(26+Math.random()*64);
+  sp.scale.set(s,s*(0.35+Math.random()*0.55),1);
+  sp.material.rotation=Math.random()*6;sp.material.opacity=0.42+Math.random()*0.28;sp.renderOrder=5;world.add(sp);
+  hubNodes.push({pos:sp.position.clone(),w:0.4,col:0x7fd8ff,sz:8});   // 遠方星系也全部連線
+}
+
+// ---- 專案節點星團（你的 10 個專案）+ 軌道環 ----
+const CLPOS=new THREE.Vector3(-300,30,40);
+const PROJ=[
+ {n:'wsio-bbq-bf'},{n:'line-assistant'},{n:'welldone-website'},
+ {n:'convoy'},{n:'dazhugong'},{n:'matchboard'},
+ {n:'welldrge'},{n:'lyric-rae'},{n:'welcome-onboard'},{n:'welldone-ig'}];
+const clGroup=new THREE.Group();clGroup.position.copy(CLPOS);clGroup.renderOrder=6;world.add(clGroup);
+// 軌道環
+for(let k=0;k<4;k++){
+  const rx=60+k*26+Math.random()*14, ry=rx*(0.5+Math.random()*0.4);
+  const curve=new THREE.EllipseCurve(0,0,rx,ry,0,Math.PI*2,false,0);
+  const pts=curve.getPoints(96).map(p=>new THREE.Vector3(p.x,p.y,0));
+  const g=new THREE.BufferGeometry().setFromPoints(pts);
+  const m=new THREE.LineBasicMaterial({color:0x9fc4ff,transparent:true,opacity:0.14,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false});
+  const ring=new THREE.LineLoop(g,m);ring.rotation.z=Math.random()*Math.PI;ring.rotation.x=(Math.random()-.5)*1.2;
+  clGroup.add(ring);
+}
+// 節點點雲
+const projPos=[];
+const cN=PROJ.length, dustN=110, totalN=cN+dustN;
+const cp=new Float32Array(totalN*3), cc=new Float32Array(totalN*3), cs=new Float32Array(totalN);
+const blueC=hex2rgb(0x8fc0ff), whiteC=hex2rgb(0xffffff);
+for(let i=0;i<totalN;i++){
+  const r=Math.pow(Math.random(),0.7)*52, a=Math.random()*7, e=(Math.random()-.5)*0.9;
+  const px=Math.cos(a)*r, py=Math.sin(a)*r*0.85, pz=Math.sin(e)*r*0.5;
+  cp[i*3]=px;cp[i*3+1]=py;cp[i*3+2]=pz;
+  const col=mixRGB(blueC,whiteC,Math.random()*0.6);
+  cc[i*3]=col[0]/255;cc[i*3+1]=col[1]/255;cc[i*3+2]=col[2]/255;
+  cs[i]=i<cN?(9+Math.random()*5):(3+Math.random()*4);
+  if(i<cN)projPos.push(new THREE.Vector3(px,py,pz));
+}
+const cGeo=new THREE.BufferGeometry();
+cGeo.setAttribute('position',new THREE.BufferAttribute(cp,3));
+cGeo.setAttribute('color',new THREE.BufferAttribute(cc,3));
+cGeo.setAttribute('aSize',new THREE.BufferAttribute(cs,1));
+const cMat=new THREE.ShaderMaterial({
+  uniforms:{uTex:{value:TEX},uTime:{value:0}},
+  vertexShader:`attribute float aSize;uniform float uTime;varying vec3 vC;varying float vT;
+    void main(){vC=color;float tw=0.6+0.4*sin(uTime*2.0+position.x*0.4+position.y*0.3);vT=tw;
+      vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=aSize*tw*(330.0/-mv.z);gl_Position=projectionMatrix*mv;}`,
+  fragmentShader:`uniform sampler2D uTex;varying vec3 vC;varying float vT;
+    void main(){vec4 t=texture2D(uTex,gl_PointCoord);if(t.a<0.01)discard;gl_FragColor=vec4(vC*vT,t.a);}`,
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,vertexColors:true});
+const cPoints=new THREE.Points(cGeo,cMat);clGroup.add(cPoints);
+addLabel(new THREE.Vector3(CLPOS.x,CLPOS.y-78,CLPOS.z),'WELLDONE 專案星團','Project Cluster · 10 nodes','cl');
+hubNodes.push({pos:CLPOS.clone(),w:1,col:0x9af0ff,sz:14});
+// （統一 hub 連線在黑洞建立後一起生成）
+
+// ---- 星座：獵戶座 + 天狼星 ----
+const orionN=[[0,0],[-38,-16],[34,-20],[-18,-58],[2,-66],[22,-72],[-30,-118],[44,-118],[-10,-96],[14,-92]];
+const OX=240,OY=300,OS=2.0;
+const orionStars=[];
+orionN.forEach((p,i)=>{const s=makeSprite(STAR,THREE.AdditiveBlending);
+  const wp=new THREE.Vector3(OX+p[0]*OS,OY-p[1]*OS,-120);
+  s.position.copy(wp);const sz=(i<3?34:24)+Math.random()*8;s.scale.set(sz,sz,1);
+  s.material.color.set(0x8fb6ff);s.renderOrder=6;world.add(s);orionStars.push(s);});
+const orionEdges=[[0,1],[0,2],[1,3],[2,5],[3,4],[4,5],[3,8],[5,9],[8,6],[9,7],[6,7]];
+const opv=[];orionEdges.forEach(([a,b])=>{opv.push(orionStars[a].position.clone(),orionStars[b].position.clone());});
+const ocGeo=new THREE.BufferGeometry().setFromPoints(opv);
+const oc=new THREE.LineSegments(ocGeo,new THREE.LineBasicMaterial({color:0x5b8cff,transparent:true,opacity:0.32,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false}));
+oc.renderOrder=5;world.add(oc);
+addLabel(new THREE.Vector3(OX+20,OY+70,-120),'獵戶座','Orion');
+// 天狼星
+const sirius=makeSprite(STAR,THREE.AdditiveBlending);
+sirius.position.set(720,180,40);sirius.scale.set(70,70,1);sirius.material.color.set(0xbcd6ff);sirius.renderOrder=7;world.add(sirius);
+addLabel(new THREE.Vector3(800,180,40),'天狼星','Sirius','sm');
+// 天狼星—獵戶座 連線
+const sl=new THREE.BufferGeometry().setFromPoints([orionStars[2].position.clone(),sirius.position.clone()]);
+world.add(new THREE.Line(sl,new THREE.LineBasicMaterial({color:0x5b8cff,transparent:true,opacity:0.2,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false})));
+
+// ---- 旋臂弧線（底部，faint）----
+function armArc(cx,cy,r,a0,a1,op){
+  const pts=[];for(let i=0;i<=80;i++){const a=a0+(a1-a0)*i/80;pts.push(new THREE.Vector3(cx+Math.cos(a)*r,cy+Math.sin(a)*r*0.42,-150));}
+  const g=new THREE.BufferGeometry().setFromPoints(pts);
+  const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xc8a06a,transparent:true,opacity:op,depthWrite:false,depthTest:false}));
+  world.add(l);}
+for(let k=0;k<5;k++)armArc(-320,-430,420+k*70,0.35,2.45,0.05+(k===2?0.04:0));
+addLabel(new THREE.Vector3(-560,-330,-150),'英仙臂','Perseus Arm','faint');
+addLabel(new THREE.Vector3(-260,-380,-150),'人馬臂','Sagittarius Arm','faint');
+
+// ===== 黑洞工廠（吸積盤 + 光子環 + 事件視界，Interstellar 風）=====
+function discTex(stops){const S=512,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  const g=x.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);stops.forEach(s=>g.addColorStop(s[0],s[1]));
+  x.fillStyle=g;x.beginPath();x.arc(S/2,S/2,S/2,0,7);x.fill();return texFromCanvas(c);}
+const blackHoles=[];
+function makeBlackHole(o){
+  const P=new THREE.Vector3(o.x,o.y,o.z||0), S=o.size, rot=o.rot||0, incl=o.incl||0.42;
+  const dc=o.disk||{hot:'255,247,234',mid:'255,156,66',out:'255,92,28'};
+  const grp=new THREE.Group();grp.position.copy(P);world.add(grp);
+  const glow=makeSprite(TEX,THREE.AdditiveBlending);glow.material.color.set(o.glow||0xff9a4c);
+  glow.material.opacity=0.2;glow.scale.set(S*1.7,S*1.3,1);glow.renderOrder=6;grp.add(glow);
+  const disk=makeSprite(discTex([[0,'rgba(0,0,0,0)'],[0.40,'rgba(0,0,0,0)'],[0.50,`rgba(${dc.hot},0.95)`],
+    [0.60,`rgba(${dc.mid},0.82)`],[0.78,`rgba(${dc.out},0.18)`],[1,`rgba(${dc.out},0)`]]),THREE.AdditiveBlending);
+  disk.scale.set(S,S*incl,1);disk.material.rotation=rot;disk.renderOrder=7;grp.add(disk);
+  const horizon=makeSprite(discTex([[0,'rgba(2,2,6,1)'],[0.72,'rgba(2,2,6,1)'],[0.92,'rgba(2,2,6,0.55)'],[1,'rgba(2,2,6,0)']]),THREE.NormalBlending);
+  horizon.scale.set(S*0.5,S*0.5,1);horizon.renderOrder=8;grp.add(horizon);
+  const photon=makeSprite(discTex([[0,'rgba(0,0,0,0)'],[0.42,'rgba(255,255,255,0)'],[0.50,`rgba(${dc.hot},0.95)`],
+    [0.58,`rgba(${dc.mid},0.3)`],[0.66,`rgba(${dc.mid},0)`],[1,'rgba(0,0,0,0)']]),THREE.AdditiveBlending);
+  photon.scale.set(S*0.9,S*0.86,1);photon.material.rotation=rot;photon.renderOrder=9;grp.add(photon);
+  if(o.name)addLabel(new THREE.Vector3(P.x,P.y-S*0.46,P.z),o.name,o.sub,'sm');
+  blackHoles.push({disk,photon,glow,spin:o.spin||0.25});
+  hubNodes.push({pos:P.clone(),w:1.3,col:0xffc070,sz:20});   // 黑洞也連到中央
+  return grp;
+}
+// 主黑洞（原本那顆）
+makeBlackHole({x:-470,y:-275,size:270,incl:0.42,rot:0,name:'人馬座 A*',sub:'Sagittarius A* · 黑洞'});
+// 另外四顆：大小不一、散開、避開星系
+makeBlackHole({x:-160,y:330,size:370,incl:0.52,rot:-0.4,spin:0.18,name:'Gargantua',sub:'巨人級 · 黑洞'});
+makeBlackHole({x:850,y:410,size:235,incl:0.36,rot:-0.18,spin:0.28,glow:0xffb45a,name:'M87*',sub:'超大質量黑洞'});
+makeBlackHole({x:790,y:-380,size:150,incl:0.3,rot:0.5,spin:0.42,glow:0xff7a3c,name:'V404 Cygni',sub:'恆星級黑洞'});
+makeBlackHole({x:300,y:-440,size:115,incl:0.6,rot:0.2,spin:0.5,glow:0xffa050,name:'GW150914',sub:'雙黑洞併合'});
+
+// ===== 統一 hub 連線：所有節點 → 中央銀河系，每條線都有運輸光點 =====
+const linePos=[],lineCol=[],cyan=[0.30,0.90,1.0],flows=[];
+for(const n of hubNodes){
+  linePos.push(NEBPOS.x,NEBPOS.y,NEBPOS.z,n.pos.x,n.pos.y,n.pos.z);
+  const f=Math.min(1,n.w),cc=[cyan[0]*f,cyan[1]*f,cyan[2]*f];
+  lineCol.push(cc[0],cc[1],cc[2],cc[0],cc[1],cc[2]);
+  const s=makeSprite(TEX,THREE.AdditiveBlending);s.scale.set(n.sz,n.sz,1);
+  s.material.color.set(n.col);s.renderOrder=10;world.add(s);
+  flows.push({s,target:n.pos,phase:Math.random(),speed:0.10+Math.random()*0.14,w:n.w});
+}
+const lGeo=new THREE.BufferGeometry();
+lGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(linePos),3));
+lGeo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(lineCol),3));
+const conn=new THREE.LineSegments(lGeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false}));
+conn.renderOrder=3;world.add(conn);
+
+// ---- 多層星空 + 遠景星雲塵（拉遠也不空）----
+function starLayer(n,radZ,size,col,op,sx,sy){
+  const p=new Float32Array(n*3);
+  for(let i=0;i<n;i++){p[i*3]=(Math.random()-.5)*sx;p[i*3+1]=(Math.random()-.5)*sy;p[i*3+2]=-150-Math.random()*radZ;}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));
+  const m=new THREE.PointsMaterial({size,map:TEX,color:col,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+  const pts=new THREE.Points(g,m);pts.renderOrder=1;scene.add(pts);return pts;}
+starLayer(9000,500,2.4,0xbcd0ff,0.55,9200,5300);   // 大量小型星
+starLayer(6000,1100,3.2,0xffffff,0.6,9400,5500);
+starLayer(3800,2300,4.8,0xfff0e0,0.55,9900,5800);
+starLayer(2200,3600,7,0xffe6c8,0.48,10600,6100);
+starLayer(1300,5200,10,0x9fc0ff,0.42,11400,6500);
+starLayer(800,7000,14,0xffd9b0,0.4,12400,7000);    // 超遠暖色微星
+// 遠景星雲塵（大片低透明彩色霧，拉遠時填滿背景）
+const BGNEB=[0x5b6bff,0x9a5bff,0x46c0d0,0xff8a5b,0x6b9bff,0xb86bff,0x4c8aff,0x8a5bff,0xff6b9a,0x3cd0a0];
+for(let i=0;i<24;i++){const s=makeSprite(TEX,THREE.AdditiveBlending);
+  s.material.color.set(BGNEB[i%BGNEB.length]);s.material.opacity=0.03+Math.random()*0.045;
+  s.position.set((Math.random()-.5)*6400,(Math.random()-.5)*3600,-340-Math.random()*1100);
+  const sc=560+Math.random()*820;s.scale.set(sc,sc*(0.55+Math.random()*0.5),1);
+  s.renderOrder=2;scene.add(s);}
+
+// （銀河帶背景已移除）
+
+// ===== 縮放 =====
+let camZ=820,camZTarget=820;const ZMIN=240,ZMAX=3000;
+let panX=0,panY=0,panTX=0,panTY=0,dragging=false,lastX=0,lastY=0;
+const WSPIN=0.05;   // 水平轉盤轉速 rad/秒（約 2 分鐘一圈）
+const clampZ=v=>Math.min(ZMAX,Math.max(ZMIN,v));
+addEventListener('wheel',e=>{e.preventDefault();const step=e.ctrlKey?e.deltaY*2.2:e.deltaY*0.9;camZTarget=clampZ(camZTarget+step);},{passive:false});
+addEventListener('keydown',e=>{if(e.key==='+'||e.key==='=')camZTarget=clampZ(camZTarget-90);if(e.key==='-'||e.key==='_')camZTarget=clampZ(camZTarget+90);});
+document.getElementById('zIn').onclick=()=>camZTarget=clampZ(camZTarget-150);
+document.getElementById('zOut').onclick=()=>camZTarget=clampZ(camZTarget+150);
+
+// ===== 滑鼠視差 =====
+let mx=0,my=0,tmx=0,tmy=0;
+addEventListener('mousemove',e=>{if(dragging)return;tmx=(e.clientX/innerWidth-.5);tmy=(e.clientY/innerHeight-.5);});
+
+// ===== 拖曳平移 =====
+const PANX=2600,PANY=1600;
+const dxy=e=>(e.touches&&e.touches[0])?e.touches[0]:e;
+cv.addEventListener('mousedown',e=>{if(e.target.closest&&e.target.closest('.hud,#zoom'))return;
+  dragging=true;const p=dxy(e);lastX=p.clientX;lastY=p.clientY;document.body.style.cursor='grabbing';});
+cv.addEventListener('touchstart',e=>{dragging=true;const p=dxy(e);lastX=p.clientX;lastY=p.clientY;},{passive:false});
+function doDrag(e){if(!dragging)return;const p=dxy(e);
+  const wpp=(2*Math.tan(camera.fov*Math.PI/360)*camZ)/innerHeight;
+  panTX=Math.max(-PANX,Math.min(PANX,panTX-(p.clientX-lastX)*wpp));
+  panTY=Math.max(-PANY,Math.min(PANY,panTY+(p.clientY-lastY)*wpp));
+  lastX=p.clientX;lastY=p.clientY;if(e.cancelable)e.preventDefault();}
+addEventListener('mousemove',doDrag);
+addEventListener('touchmove',doDrag,{passive:false});
+const endDrag=()=>{dragging=false;document.body.style.cursor='';};
+addEventListener('mouseup',endDrag);addEventListener('touchend',endDrag);
+cv.addEventListener('dblclick',()=>{panTX=0;panTY=0;camZTarget=820;});
+
+// ===== 動畫 =====
+const proj=new THREE.Vector3();
+function updateLabels(){
+  world.updateWorldMatrix(true,false);
+  for(const L of labels){
+    proj.copy(L.pos).applyMatrix4(world.matrixWorld).project(camera);
+    if(proj.z>1){L.el.style.opacity='0';continue;}
+    const sx=(proj.x*0.5+0.5)*innerWidth, sy=(-proj.y*0.5+0.5)*innerHeight;
+    L.el.style.left=sx+'px';L.el.style.top=sy+'px';
+    const m=40;L.el.style.opacity=(sx<m||sx>innerWidth-m||sy<m||sy>innerHeight-m)?'0.15':'1';
+  }
+}
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
+  cMat.uniforms.uTime.value=t;
+  for(const g of galaxies)g.sp.material.rotation+=g.spin*dt;
+  galaxyCore.rotation.z+=dt*0.02;
+  clGroup.rotation.z+=dt*0.05;
+  for(const b of blackHoles){b.disk.material.rotation+=dt*b.spin;b.photon.material.rotation-=dt*b.spin*0.4;
+    b.glow.material.opacity=0.15+0.07*Math.sin(t*1.2+b.disk.material.rotation);}
+  orionStars.forEach((s,i)=>s.material.opacity=0.7+0.3*Math.sin(t*1.5+i));
+  sirius.material.opacity=0.85+0.15*Math.sin(t*2.0);
+  for(const fl of flows){const k=((t*fl.speed)+fl.phase)%1;
+    fl.s.position.copy(fl.target).lerp(NEBPOS,k);          // 由節點運輸到中央銀河系
+    fl.s.material.opacity=Math.sin(k*Math.PI)*(0.4+0.55*Math.min(1,fl.w));}
+  conn.material.opacity=0.4+0.12*Math.sin(t*0.8);
+  camZ+=(camZTarget-camZ)*0.08;
+  const pk=dragging?1:0.18;panX+=(panTX-panX)*pk;panY+=(panTY-panY)*pk;  // 拖曳時 1:1 跟手
+  mx+=(tmx-mx)*0.04;my+=(tmy-my)*0.04;
+  camera.position.x=panX+mx*70;camera.position.y=panY-my*55+Math.sin(t*0.1)*8;
+  camera.position.z=camZ;
+  camera.lookAt(panX,panY,0);
+  world.rotation.z-=WSPIN*dt;   // 水平轉盤：繞盤面法線順時鐘旋轉
+  updateLabels();
+  comp.render();requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ===== chips & HUD =====
+const NAMES=['wsio-bbq-bf','line-assistant','welldone-website','convoy','dazhugong','matchboard','welldrge','lyric-rae','welcome-onboard','welldone-ig'];
+const NCNT=[737,1636,283,464,973,608,1469,923,1797,959];
+const PALc=[0xff8a3c,0xffb43c,0x3cff9e,0x46e0ff,0x6b9bff,0xb86bff,0xffd23c,0xff5a7a,0x6be0d0,0xa06bff].map(h=>new THREE.Color(h));
+const top=document.getElementById('top');
+NAMES.forEach((nm,i)=>{const c=PALc[i%PALc.length],d=document.createElement('div');d.className='chip';
+  d.innerHTML=`<span class="dot" style="color:#${c.getHexString()};background:#${c.getHexString()}"></span>${nm}<span class="num">${NCNT[i].toLocaleString()} NODES</span>`;
+  top.appendChild(d);});
+const cTime=document.getElementById('cTime'),cSec=document.getElementById('cSec');
+const tfmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+let sec=0;
+function tickHUD(){
+  const p={};for(const x of tfmt.formatToParts(new Date()))p[x.type]=x.value;
+  cTime.textContent=`${p.hour}:${p.minute}`;cSec.textContent=p.second;   // 台北時間 UTC+8
+  sec++;
+  // 真實數值：連線總數 = hubNodes 數量；活躍節點 = 目前正在運輸中的光點數
+  const links=hubNodes.length, nodes=links+1;   // +1 = 中央銀河系
+  let active=0;for(const fl of flows)if(fl.s.material.opacity>0.28)active++;
+  document.getElementById('kActive').textContent=active;
+  document.getElementById('dNum').textContent=`${links} 連線 · ${nodes} 節點`;
+  document.getElementById('dFill').style.width=Math.round(active/Math.max(1,flows.length)*100)+'%';
+}
+tickHUD();setInterval(tickHUD,1000);
+</script>
+</body>
+</html>

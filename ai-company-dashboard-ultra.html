@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WELLDONE OPERATOR — ULTRA（星系版）</title>
+<style>
+  :root{
+    --bg:#04050a; --panel:rgba(16,18,26,.62); --panel-line:rgba(255,255,255,.08);
+    --txt:#cdd3e0; --txt-dim:#7d8596; --accent:#ff8a3c; --good:#3cff9e; --blue:#6b9bff;
+    --font:-apple-system,"PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);overflow:hidden;font-family:var(--font);color:var(--txt)}
+  #nebula{position:fixed;inset:0;z-index:0;
+    background:
+      radial-gradient(70% 55% at 50% 52%, rgba(46,34,92,.42), transparent 72%),
+      radial-gradient(45% 45% at 22% 62%, rgba(150,70,22,.26), transparent 70%),
+      radial-gradient(45% 50% at 78% 42%, rgba(22,70,110,.28), transparent 70%),
+      radial-gradient(38% 40% at 60% 80%, rgba(120,40,120,.18), transparent 70%),
+      #04050a;}
+  #gl{position:fixed;inset:0;z-index:1;display:block}
+  /* 暗角，讓中心更聚焦 */
+  #vignette{position:fixed;inset:0;z-index:2;pointer-events:none;
+    background:radial-gradient(120% 95% at 50% 48%, transparent 55%, rgba(0,0,0,.55) 100%)}
+  #loading{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
+    color:var(--txt-dim);font-size:13px;letter-spacing:.1em}
+  .hud{position:fixed;z-index:5;pointer-events:none}
+  .panel{background:var(--panel);border:1px solid var(--panel-line);border-radius:14px;
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    box-shadow:0 8px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);padding:12px 14px}
+  .eyebrow{font-size:10px;letter-spacing:.18em;color:var(--txt-dim);text-transform:uppercase;margin-bottom:8px}
+  .row{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
+  .muted{color:var(--txt-dim)}
+  .num{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}
+  #left{left:18px;top:64px;width:188px;display:flex;flex-direction:column;gap:12px}
+  .brand{font-size:14px;font-weight:700;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+  .brand .logo{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--accent),#ff5a5a);box-shadow:0 0 14px rgba(255,138,60,.7)}
+  .brand small{display:block;font-size:9px;letter-spacing:.22em;color:var(--txt-dim);font-weight:500}
+  .nav .row.active{color:#fff}
+  .cost{display:flex;align-items:center;gap:10px}
+  .cost .ico{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#c43c00);flex:none;box-shadow:0 0 14px rgba(255,90,0,.5)}
+  .cost b{font-size:13px}.cost p{font-size:10px;color:var(--txt-dim);line-height:1.4;margin-top:2px}
+  #top{left:50%;top:18px;transform:translateX(-50%);display:flex;gap:7px;flex-wrap:wrap;justify-content:center;max-width:80vw}
+  .chip{display:flex;align-items:center;gap:7px;font-size:11px;padding:6px 10px;border-radius:11px;
+    background:rgba(20,22,32,.62);border:1px solid var(--panel-line);backdrop-filter:blur(10px)}
+  .chip .num{font-size:9px;color:var(--txt-dim);margin-left:4px}
+  #right{right:18px;top:64px;width:194px;display:flex;flex-direction:column;gap:12px}
+  .msg{font-size:11px;line-height:1.5;color:var(--txt-dim)}.msg b{color:var(--txt)}
+  .deck{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:4px}
+  .deck button{pointer-events:auto;font:inherit;font-size:11px;color:var(--txt);
+    background:rgba(255,255,255,.04);border:1px solid var(--panel-line);border-radius:9px;padding:8px 6px;cursor:pointer;transition:.15s}
+  .deck button:hover{background:rgba(255,138,60,.15);border-color:var(--accent);color:#fff;box-shadow:0 0 16px rgba(255,138,60,.25)}
+  #chat{left:50%;bottom:74px;transform:translateX(-50%);width:344px;max-width:80vw}
+  #chat .bubble{font-size:11.5px;line-height:1.55;color:var(--txt-dim)}#chat .bubble b{color:var(--txt)}
+  #inputbar{display:flex;gap:8px;margin-top:10px;pointer-events:auto}
+  #inputbar input{flex:1;font:inherit;font-size:12px;color:var(--txt);background:rgba(255,255,255,.05);
+    border:1px solid var(--panel-line);border-radius:20px;padding:9px 14px;outline:none}
+  #inputbar input::placeholder{color:var(--txt-dim)}
+  #inputbar .send{width:34px;height:34px;border-radius:50%;border:none;flex:none;cursor:pointer;background:linear-gradient(135deg,#8b5bff,#5b8cff);box-shadow:0 0 16px rgba(120,90,255,.5)}
+  #clock{right:24px;bottom:24px;display:flex;align-items:center;gap:10px;background:rgba(20,22,32,.62);
+    border:1px solid var(--panel-line);border-radius:22px;padding:8px 16px;font-variant-numeric:tabular-nums;backdrop-filter:blur(12px)}
+  #clock .t{font-size:22px;font-weight:600;letter-spacing:.04em}#clock .s{font-size:11px;color:var(--txt-dim)}
+  #zoom{right:24px;bottom:74px;z-index:5;display:flex;flex-direction:column;gap:7px;pointer-events:auto;align-items:center}
+  #zoom button{width:36px;height:36px;border-radius:50%;border:1px solid var(--panel-line);
+    background:rgba(20,22,32,.62);color:var(--txt);font-size:19px;line-height:1;cursor:pointer;
+    backdrop-filter:blur(12px);transition:.15s;display:flex;align-items:center;justify-content:center}
+  #zoom button:hover{border-color:var(--accent);color:#fff;box-shadow:0 0 14px rgba(255,138,60,.3)}
+  #zoom .zlabel{font-size:8px;letter-spacing:.14em;color:var(--txt-dim);writing-mode:vertical-rl;margin-top:2px}
+  #density{left:50%;bottom:24px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;
+    font-size:10px;letter-spacing:.12em;color:var(--txt-dim)}
+  #density .bar{width:160px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+  #density .fill{height:100%;width:62%;background:linear-gradient(90deg,var(--blue),var(--good));border-radius:3px;box-shadow:0 0 10px rgba(60,255,158,.5)}
+  @media(max-width:760px){#left,#right{display:none}#top{max-width:96vw}}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+  <div id="nebula"></div>
+  <canvas id="gl"></canvas>
+  <div id="vignette"></div>
+  <div id="loading">載入 three.js 中…（需連網一次；若卡住請用桌面瀏覽器開）</div>
+
+  <div id="top" class="hud"></div>
+
+  <div id="left" class="hud">
+    <div class="panel">
+      <div class="brand"><span class="logo"></span>WELLDONE<small>OPERATOR</small></div>
+      <div class="nav" style="margin-top:10px">
+        <div class="row active"><span class="dot" style="background:var(--accent)"></span>圖譜 Graph</div>
+        <div class="row muted"><span class="dot" style="background:#444"></span>價值 Value</div>
+        <div class="row muted"><span class="dot" style="background:#444"></span>重疊 Overlap</div>
+        <div class="row muted"><span class="dot" style="background:#444"></span>結構 Activity</div>
+      </div>
+    </div>
+    <div class="panel"><div class="cost"><span class="ico"></span><div><b>AI 成本</b><p>本月 TOKENS<br>累計 即時運算</p></div></div></div>
+    <div class="panel">
+      <div class="row"><span class="dot" style="color:var(--accent);background:var(--accent)"></span>claude<span class="num">HIGH</span></div>
+      <div class="row"><span class="dot" style="color:var(--good);background:var(--good)"></span>codex<span class="num muted">MID</span></div>
+      <div class="row"><span class="dot" style="color:var(--blue);background:var(--blue)"></span>gemini<span class="num muted">LOW</span></div>
+    </div>
+    <div class="panel">
+      <div class="eyebrow">互動率 · FOCUS</div>
+      <div class="row">在線<span class="num" style="color:var(--good)" id="kOnline">11</span></div>
+      <div class="row">活躍節點<span class="num" style="color:var(--accent)" id="kActive">233</span></div>
+      <div class="row">待命<span class="num">0</span></div>
+      <div class="row">NODE / NTE<span class="num" style="color:var(--accent)">7,800</span></div>
+    </div>
+  </div>
+
+  <div id="right" class="hud">
+    <div class="panel"><div class="eyebrow">claude · the-assistant</div><div class="msg"><b>claude</b> 已連上 4 個新節點，社群數據抓取中…</div></div>
+    <div class="panel"><div class="row"><b>RunBoss</b><span class="num" style="color:var(--good)">NTE 7,800</span></div></div>
+    <div class="panel"><div class="eyebrow">Command Deck</div>
+      <div class="deck"><button>建立節點</button><button>導入社群</button><button>重算佈局</button><button>聚類分析</button><button>價值疊圖</button><button>匯出報告</button></div></div>
+  </div>
+
+  <div id="chat" class="hud"><div class="panel">
+    <div class="bubble"><b>兄弟起床啦！</b>我把社群數據先抓出來了，從目前的節點密度來看，今天大概有 2,180 個新連線。RunBoss 說 MRR 衝到 7,800，要不要先看一下 welldone.ai 的圖譜結構？</div>
+    <div id="inputbar"><input placeholder="輸入指令給 operator…"><button class="send"></button></div>
+  </div></div>
+
+  <div id="zoom"><button id="zIn" title="放大">＋</button><button id="zOut" title="縮小">－</button><span class="zlabel">滾輪縮放</span></div>
+
+  <div id="clock" class="hud"><div class="t" id="cTime">02:43</div><div class="s" id="cSec">07</div></div>
+  <div id="density" class="hud"><span id="dNum">7,800</span><div class="bar"><div class="fill" id="dFill"></div></div><span>DENSITY</span></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+const cv=document.getElementById('gl');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setClearColor(0x04050a,0);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,1,6000);
+camera.position.set(0,40,680);
+
+document.getElementById('loading').style.display='none';
+
+// ---- 真 Bloom（調過：避免整片洗白）----
+const composer=new THREE.WebGLRenderer?null:null; // noop guard
+const comp=new EffectComposer(renderer);
+comp.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.78,0.6,0.2);
+comp.addPass(bloom);
+function resize(){renderer.setSize(innerWidth,innerHeight);comp.setSize(innerWidth,innerHeight);
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+
+// ---- 貼圖 ----
+function glowTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
+  const g=x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(255,255,255,.55)');
+  g.addColorStop(.55,'rgba(255,255,255,.14)');g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g;x.fillRect(0,0,128,128);
+  const t=new THREE.Texture(c);t.needsUpdate=true;return t;}
+function streakTex(){const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,256,0);
+  g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.5,'rgba(255,255,255,1)');g.addColorStop(1,'rgba(255,255,255,0)');
+  // 縱向也羽化
+  const vg=x.createLinearGradient(0,0,0,64);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(.5,'rgba(0,0,0,1)');vg.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g;x.fillRect(0,0,256,64);
+  x.globalCompositeOperation='destination-in';x.fillStyle=vg;x.fillRect(0,0,256,64);
+  const t=new THREE.Texture(c);t.needsUpdate=true;return t;}
+const TEX=glowTex(), STREAK=streakTex();
+
+// ---- 調色盤（暖 / 冷 兩套，逐 cluster 對齊，全圖一起呼吸切換）----
+const WARM=[0xff8a3c,0xffb43c,0xff6a44,0xffd23c,0xff5a7a,0xff9a4c,0xe88a3c,0xffc15a,0xff7a52,0xf0644c];
+const COOL=[0x46e0ff,0x6b9bff,0xb86bff,0x3cd0ff,0x8a6bff,0x4cc0ff,0x6be0d0,0x7a8aff,0xa06bff,0x4ca0ff];
+const cWARM=WARM.map(h=>new THREE.Color(h)), cCOOL=COOL.map(h=>new THREE.Color(h));
+const CLUSTERS=cWARM.length;
+
+// ---- 程序化生成「星系」節點 ----
+const tmpV=new THREE.Vector3(), tmpQ=new THREE.Quaternion(), tmpE=new THREE.Euler();
+const NodesP=[], NodeC=[], NodeSize=[], NodePhase=[], clusterOf=[];
+const cores=[];               // 每群亮核資料
+const clusterMembers=[];      // 每群成員索引（KNN 用）
+
+for(let c=0;c<CLUSTERS;c++){
+  const a=c/CLUSTERS*Math.PI*2 + (Math.random()-.5)*0.5;
+  const ringR=160+Math.random()*190;
+  // 散佈成「滿天星系」：水平拉寬、垂直大幅起伏、深度錯落
+  const core=new THREE.Vector3(
+    Math.cos(a)*ringR,
+    (Math.random()-.5)*440,
+    Math.sin(a)*ringR*0.62 + (Math.random()-.5)*120);
+  // 每群一個隨機傾斜，讓盤面方向各異
+  tmpE.set((Math.random()-.5)*2.2,(Math.random()-.5)*2.2,(Math.random()-.5)*2.2);
+  tmpQ.setFromEuler(tmpE);
+  const arms=2+(Math.random()*2|0);
+  const cr=78+Math.random()*78;
+  const count=110+(Math.random()*100|0);
+  const members=[];
+  // 核心節點
+  const coreIdx=NodesP.length;
+  NodesP.push(core.clone());NodeC.push(c);NodeSize.push(20+Math.random()*8);NodePhase.push(Math.random()*6.28);clusterOf.push(c);
+  members.push(coreIdx);
+  cores.push({pos:core.clone(),ci:c,scale:62+Math.random()*46,phase:Math.random()*6.28});
+  for(let k=0;k<count;k++){
+    const rr=Math.pow(Math.random(),1.7);
+    const radius=rr*cr;
+    const arm=Math.floor(Math.random()*arms);
+    const theta=arm/arms*Math.PI*2 + radius*0.04 + (Math.random()-.5)*0.85;
+    const lx=Math.cos(theta)*radius;
+    const lz=Math.sin(theta)*radius;
+    const ly=(Math.random()-.5)*cr*0.2*(1.0-rr*0.55);
+    tmpV.set(lx,ly,lz).applyQuaternion(tmpQ).add(core);
+    NodesP.push(tmpV.clone());
+    NodeC.push(c);
+    // 大小階層：多數星塵、少數 hub
+    let s=4.0+(1.0-rr)*9.0;
+    if(Math.random()<0.05) s+=14+Math.random()*10;
+    NodeSize.push(s);
+    NodePhase.push(Math.random()*6.28);
+    clusterOf.push(c);
+    members.push(NodesP.length-1);
+  }
+  clusterMembers.push(members);
+}
+const N=NodesP.length;
+
+// ---- 連線：核心放射 spoke + 群內 KNN(2) + 少量跨群橋 ----
+const edges=[];
+for(let c=0;c<CLUSTERS;c++){
+  const mem=clusterMembers[c];
+  const coreIdx=mem[0];
+  for(let i=1;i<mem.length;i++){
+    const ni=mem[i];
+    // spoke：往核心
+    if(Math.random()<0.34) edges.push([ni,coreIdx]);
+    // KNN：找 2 個最近鄰
+    let b1=-1,b2=-1,d1=1e18,d2=1e18;
+    const pi=NodesP[ni];
+    for(let j=1;j<mem.length;j++){
+      if(j===i)continue;const nj=mem[j];
+      const d=pi.distanceToSquared(NodesP[nj]);
+      if(d<d1){d2=d1;b2=b1;d1=d;b1=nj;}
+      else if(d<d2){d2=d;b2=nj;}
+    }
+    if(b1>=0&&Math.random()<0.9) edges.push([ni,b1]);
+    if(b2>=0&&Math.random()<0.45) edges.push([ni,b2]);
+  }
+}
+for(let e=0;e<34;e++){edges.push([Math.random()*N|0,Math.random()*N|0]);} // 跨群長橋
+
+// ---- 節點幾何 + 自訂 shader（逐點大小 / 閃爍 / 暖冷漸變）----
+const pos=new Float32Array(N*3), cA=new Float32Array(N*3), cB=new Float32Array(N*3),
+      sz=new Float32Array(N), ph=new Float32Array(N);
+for(let i=0;i<N;i++){
+  pos[i*3]=NodesP[i].x;pos[i*3+1]=NodesP[i].y;pos[i*3+2]=NodesP[i].z;
+  const ci=NodeC[i];
+  // 逐點色彩抖動，增加層次
+  const ja=0.82+Math.random()*0.26, jb=0.82+Math.random()*0.26;
+  cA[i*3]=cWARM[ci].r*ja;cA[i*3+1]=cWARM[ci].g*ja;cA[i*3+2]=cWARM[ci].b*ja;
+  cB[i*3]=cCOOL[ci].r*jb;cB[i*3+1]=cCOOL[ci].g*jb;cB[i*3+2]=cCOOL[ci].b*jb;
+  sz[i]=NodeSize[i];ph[i]=NodePhase[i];
+}
+const pGeo=new THREE.BufferGeometry();
+pGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+pGeo.setAttribute('aColorA',new THREE.BufferAttribute(cA,3));
+pGeo.setAttribute('aColorB',new THREE.BufferAttribute(cB,3));
+pGeo.setAttribute('aSize',new THREE.BufferAttribute(sz,1));
+pGeo.setAttribute('aPhase',new THREE.BufferAttribute(ph,1));
+
+const pMat=new THREE.ShaderMaterial({
+  uniforms:{uTex:{value:TEX},uTime:{value:0},uTheme:{value:0}},
+  vertexShader:`
+    attribute vec3 aColorA; attribute vec3 aColorB; attribute float aSize; attribute float aPhase;
+    uniform float uTime; uniform float uTheme;
+    varying vec3 vColor; varying float vTw;
+    void main(){
+      vColor = mix(aColorA, aColorB, uTheme);
+      float tw = 0.5 + 0.5*sin(uTime*1.7 + aPhase);
+      vTw = 0.42 + 0.4*tw;
+      vec4 mv = modelViewMatrix * vec4(position,1.0);
+      gl_PointSize = aSize * (0.85 + 0.35*tw) * (330.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader:`
+    uniform sampler2D uTex; varying vec3 vColor; varying float vTw;
+    void main(){
+      vec4 t = texture2D(uTex, gl_PointCoord);
+      if(t.a < 0.01) discard;
+      gl_FragColor = vec4(vColor * vTw, t.a);
+    }`,
+  transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false
+});
+const points=new THREE.Points(pGeo,pMat);
+
+// ---- 連線幾何 + shader（同步暖冷漸變）----
+const ePos=new Float32Array(edges.length*6), eA=new Float32Array(edges.length*6), eB=new Float32Array(edges.length*6);
+for(let e=0;e<edges.length;e++){
+  const [ai,bi]=edges[e];
+  ePos[e*6]=NodesP[ai].x;ePos[e*6+1]=NodesP[ai].y;ePos[e*6+2]=NodesP[ai].z;
+  ePos[e*6+3]=NodesP[bi].x;ePos[e*6+4]=NodesP[bi].y;ePos[e*6+5]=NodesP[bi].z;
+  for(let k=0;k<3;k++){
+    eA[e*6+k]=cA[ai*3+k];eA[e*6+3+k]=cA[bi*3+k];
+    eB[e*6+k]=cB[ai*3+k];eB[e*6+3+k]=cB[bi*3+k];
+  }
+}
+const eGeo=new THREE.BufferGeometry();
+eGeo.setAttribute('position',new THREE.BufferAttribute(ePos,3));
+eGeo.setAttribute('aColorA',new THREE.BufferAttribute(eA,3));
+eGeo.setAttribute('aColorB',new THREE.BufferAttribute(eB,3));
+const eMat=new THREE.ShaderMaterial({
+  uniforms:{uTheme:{value:0},uOpacity:{value:0.11}},
+  vertexShader:`
+    attribute vec3 aColorA; attribute vec3 aColorB; uniform float uTheme; varying vec3 vColor;
+    void main(){ vColor=mix(aColorA,aColorB,uTheme);
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader:`uniform float uOpacity; varying vec3 vColor;
+    void main(){ gl_FragColor=vec4(vColor,uOpacity);}`,
+  transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false
+});
+const lines=new THREE.LineSegments(eGeo,eMat);
+
+// ---- 亮核 + 橫向鏡頭光暈 ----
+const coreSprites=[], flareSprites=[];
+for(const co of cores){
+  const m=new THREE.SpriteMaterial({map:TEX,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,opacity:0.95});
+  const s=new THREE.Sprite(m);s.position.copy(co.pos);s.scale.set(co.scale,co.scale,1);
+  s.userData=co;coreSprites.push(s);
+  const fm=new THREE.SpriteMaterial({map:STREAK,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,opacity:0.42});
+  const f=new THREE.Sprite(fm);f.position.copy(co.pos);f.scale.set(co.scale*3.2,co.scale*0.36,1);
+  f.userData=co;flareSprites.push(f);
+}
+
+// ---- 漂浮星雲光球 ----
+const nebSprites=[];
+for(let i=0;i<8;i++){
+  const ci=i%CLUSTERS;
+  const m=new THREE.SpriteMaterial({map:TEX,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,opacity:0.12});
+  const s=new THREE.Sprite(m);
+  s.position.set((Math.random()-.5)*620,(Math.random()-.5)*340,(Math.random()-.5)*420);
+  const sc=360+Math.random()*300;s.scale.set(sc,sc,1);
+  s.userData={ci,phase:Math.random()*6.28,baseY:s.position.y};
+  nebSprites.push(s);
+}
+
+// ---- 圖譜群組（整體緩慢自轉）----
+const graph=new THREE.Group();
+graph.add(lines);graph.add(points);
+coreSprites.forEach(s=>graph.add(s));flareSprites.forEach(s=>graph.add(s));
+nebSprites.forEach(s=>graph.add(s));
+graph.rotation.x=-0.12;
+scene.add(graph);
+
+// ---- 背景星塵 ----
+const ST=1900;const stPos=new Float32Array(ST*3);
+for(let i=0;i<ST;i++){
+  const r=900+Math.random()*1400, u=Math.random()*2-1, t=Math.random()*Math.PI*2, s=Math.sqrt(1-u*u);
+  stPos[i*3]=r*s*Math.cos(t);stPos[i*3+1]=r*u*0.6;stPos[i*3+2]=r*s*Math.sin(t);
+}
+const stGeo=new THREE.BufferGeometry();stGeo.setAttribute('position',new THREE.BufferAttribute(stPos,3));
+const stMat=new THREE.PointsMaterial({size:6,map:TEX,color:0x8aa6ff,transparent:true,opacity:0.4,
+  blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+const stars=new THREE.Points(stGeo,stMat);
+const starGroup=new THREE.Group();starGroup.add(stars);scene.add(starGroup);
+
+// ---- 滑鼠視差 ----
+let mx=0,my=0,tmx=0,tmy=0;
+addEventListener('mousemove',e=>{tmx=(e.clientX/innerWidth-.5);tmy=(e.clientY/innerHeight-.5);});
+
+// ---- 縮放（滾輪 / 觸控板捏合 / 按鈕 / +- 鍵）----
+let camZ=680, camZTarget=680;
+const ZMIN=200, ZMAX=1600;
+const clampZ=v=>Math.min(ZMAX,Math.max(ZMIN,v));
+addEventListener('wheel',e=>{e.preventDefault();
+  // 觸控板捏合(ctrl+wheel)較細膩、滾輪較大步
+  const step=e.ctrlKey?e.deltaY*1.6:e.deltaY*0.7;
+  camZTarget=clampZ(camZTarget+step);
+},{passive:false});
+addEventListener('keydown',e=>{
+  if(e.key==='+'||e.key==='=')camZTarget=clampZ(camZTarget-70);
+  if(e.key==='-'||e.key==='_')camZTarget=clampZ(camZTarget+70);
+});
+document.getElementById('zIn').onclick=()=>camZTarget=clampZ(camZTarget-120);
+document.getElementById('zOut').onclick=()=>camZTarget=clampZ(camZTarget+120);
+
+// ---- 動畫 ----
+const cWarmTmp=new THREE.Color(), cCoolTmp=new THREE.Color(), cMix=new THREE.Color();
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
+  // 暖↔冷呼吸：在兩端停留久一點
+  const raw=(Math.sin(t*0.10)+1)/2;
+  const theme=raw*raw*(3-2*raw); // smoothstep
+  pMat.uniforms.uTime.value=t;pMat.uniforms.uTheme.value=theme;
+  eMat.uniforms.uTheme.value=theme;
+
+  // 亮核脈動 + 顏色跟著暖冷
+  for(const s of coreSprites){const co=s.userData;
+    const pulse=1.0+0.16*Math.sin(t*1.4+co.phase);
+    s.scale.set(co.scale*pulse,co.scale*pulse,1);
+    cMix.copy(cWARM[co.ci]).lerp(cCOOL[co.ci],theme);
+    s.material.color.copy(cMix);
+    s.material.opacity=0.5+0.14*Math.sin(t*1.1+co.phase);}
+  for(const f of flareSprites){const co=f.userData;
+    const pulse=1.0+0.22*Math.sin(t*1.4+co.phase);
+    f.scale.set(co.scale*3.2*pulse,co.scale*0.36*pulse,1);
+    cMix.copy(cWARM[co.ci]).lerp(cCOOL[co.ci],theme);
+    f.material.color.copy(cMix);
+    f.material.opacity=0.18+0.12*Math.sin(t*1.4+co.phase);}
+  for(const s of nebSprites){const u=s.userData;
+    cMix.copy(cWARM[u.ci]).lerp(cCOOL[u.ci],theme);
+    s.material.color.copy(cMix);
+    s.position.y=u.baseY+Math.sin(t*0.25+u.phase)*22;
+    s.material.opacity=0.06+0.035*Math.sin(t*0.4+u.phase);}
+
+  // 整體自轉 + 視差
+  graph.rotation.y+=dt*0.045;
+  starGroup.rotation.y+=dt*0.012;
+  camZ+=(camZTarget-camZ)*0.08;
+  mx+=(tmx-mx)*0.04;my+=(tmy-my)*0.04;
+  camera.position.x=mx*120;
+  camera.position.y=40-my*90+Math.sin(t*0.12)*16;
+  camera.position.z=camZ;
+  camera.lookAt(0,0,0);
+
+  comp.render();requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---- chips（沿用英文代號，數字固定，避免每次重排）----
+const NAMES=['wsio-bbq-bf','line-assistant','welldone-website','convoy','dazhugong','matchboard','welldrge','lyric-rae','welcome-onboard','welldone-ig'];
+const NCNT=[737,1636,283,464,973,608,1469,923,1797,959];
+const top=document.getElementById('top');
+NAMES.forEach((nm,i)=>{const c=cWARM[i%CLUSTERS],d=document.createElement('div');d.className='chip';
+  d.innerHTML=`<span class="dot" style="color:#${c.getHexString()};background:#${c.getHexString()}"></span>${nm}<span class="num">${NCNT[i].toLocaleString()} NODES</span>`;
+  top.appendChild(d);});
+
+// ---- HUD 微動 ----
+const cTime=document.getElementById('cTime'),cSec=document.getElementById('cSec');
+const tfmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+let sec=0;
+function tickHUD(){
+  const p={};for(const x of tfmt.formatToParts(new Date()))p[x.type]=x.value;
+  cTime.textContent=`${p.hour}:${p.minute}`;cSec.textContent=p.second;   // 台北時間 UTC+8
+  sec++;
+  // 活躍節點、密度條輕微浮動
+  document.getElementById('kActive').textContent=225+Math.round(Math.sin(sec*0.3)*12+Math.random()*6);
+  document.getElementById('dNum').textContent=(7600+Math.round(Math.sin(sec*0.2)*220+Math.random()*120)).toLocaleString();
+  document.getElementById('dFill').style.width=(54+Math.sin(sec*0.25)*10)+'%';
+}
+tickHUD();setInterval(tickHUD,1000);
+</script>
+</body>
+</html>

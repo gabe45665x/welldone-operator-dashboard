@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WELLDONE OPERATOR — 高擬真版（真 Bloom + 力導向）</title>
+<style>
+  :root{
+    --bg:#05060a; --panel:rgba(16,18,26,.72); --panel-line:rgba(255,255,255,.08);
+    --txt:#cdd3e0; --txt-dim:#7d8596; --accent:#ff8a3c; --good:#3cff9e; --blue:#6b9bff;
+    --font:-apple-system,"PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);overflow:hidden;font-family:var(--font);color:var(--txt)}
+  #nebula{position:fixed;inset:0;z-index:0;
+    background:
+      radial-gradient(60% 50% at 50% 55%, rgba(40,30,80,.35), transparent 70%),
+      radial-gradient(40% 40% at 25% 60%, rgba(120,60,20,.22), transparent 70%),
+      radial-gradient(40% 45% at 75% 45%, rgba(20,60,90,.22), transparent 70%),
+      #05060a;}
+  #gl{position:fixed;inset:0;z-index:1;display:block}
+  #loading{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
+    color:var(--txt-dim);font-size:13px;letter-spacing:.1em}
+  .hud{position:fixed;z-index:5;pointer-events:none}
+  .panel{background:var(--panel);border:1px solid var(--panel-line);border-radius:14px;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:0 8px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04);padding:12px 14px}
+  .eyebrow{font-size:10px;letter-spacing:.18em;color:var(--txt-dim);text-transform:uppercase;margin-bottom:8px}
+  .row{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .muted{color:var(--txt-dim)}
+  .num{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}
+  #left{left:18px;top:64px;width:182px;display:flex;flex-direction:column;gap:12px}
+  .brand{font-size:14px;font-weight:700;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+  .brand .logo{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--accent),#ff5a5a)}
+  .brand small{display:block;font-size:9px;letter-spacing:.22em;color:var(--txt-dim);font-weight:500}
+  .nav .row.active{color:#fff}
+  .cost{display:flex;align-items:center;gap:10px}
+  .cost .ico{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#c43c00);flex:none}
+  .cost b{font-size:13px}.cost p{font-size:10px;color:var(--txt-dim);line-height:1.4;margin-top:2px}
+  #top{left:50%;top:18px;transform:translateX(-50%);display:flex;gap:7px;flex-wrap:wrap;justify-content:center;max-width:78vw}
+  .chip{display:flex;align-items:center;gap:7px;font-size:11px;padding:6px 10px;border-radius:11px;
+    background:rgba(20,22,32,.7);border:1px solid var(--panel-line);backdrop-filter:blur(10px)}
+  .chip .num{font-size:9px;color:var(--txt-dim);margin-left:4px}
+  #right{right:18px;top:64px;width:190px;display:flex;flex-direction:column;gap:12px}
+  .msg{font-size:11px;line-height:1.5;color:var(--txt-dim)}.msg b{color:var(--txt)}
+  .deck{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:4px}
+  .deck button{pointer-events:auto;font:inherit;font-size:11px;color:var(--txt);
+    background:rgba(255,255,255,.04);border:1px solid var(--panel-line);border-radius:9px;padding:8px 6px;cursor:pointer;transition:.15s}
+  .deck button:hover{background:rgba(255,138,60,.15);border-color:var(--accent);color:#fff}
+  #chat{left:50%;bottom:74px;transform:translateX(-50%);width:340px;max-width:80vw}
+  #chat .bubble{font-size:11.5px;line-height:1.55;color:var(--txt-dim)}#chat .bubble b{color:var(--txt)}
+  #inputbar{display:flex;gap:8px;margin-top:10px;pointer-events:auto}
+  #inputbar input{flex:1;font:inherit;font-size:12px;color:var(--txt);background:rgba(255,255,255,.05);
+    border:1px solid var(--panel-line);border-radius:20px;padding:9px 14px;outline:none}
+  #inputbar input::placeholder{color:var(--txt-dim)}
+  #inputbar .send{width:34px;height:34px;border-radius:50%;border:none;flex:none;cursor:pointer;background:linear-gradient(135deg,#8b5bff,#5b8cff)}
+  #clock{right:24px;bottom:24px;display:flex;align-items:center;gap:10px;background:rgba(20,22,32,.7);
+    border:1px solid var(--panel-line);border-radius:22px;padding:8px 16px;font-variant-numeric:tabular-nums}
+  #clock .t{font-size:22px;font-weight:600;letter-spacing:.04em}#clock .s{font-size:11px;color:var(--txt-dim)}
+  #density{left:50%;bottom:24px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;
+    font-size:10px;letter-spacing:.12em;color:var(--txt-dim)}
+  #density .bar{width:160px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+  #density .fill{height:100%;width:62%;background:linear-gradient(90deg,var(--blue),var(--good));border-radius:3px}
+  @media(max-width:760px){#left,#right{display:none}#top{max-width:96vw}}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+  <div id="nebula"></div>
+  <canvas id="gl"></canvas>
+  <div id="loading">載入 three.js 中…（需連網一次；若卡住請用桌面瀏覽器開）</div>
+
+  <div id="top" class="hud"></div>
+
+  <div id="left" class="hud">
+    <div class="panel">
+      <div class="brand"><span class="logo"></span>WELLDONE<small>OPERATOR</small></div>
+      <div class="nav" style="margin-top:10px">
+        <div class="row active"><span class="dot" style="background:var(--accent)"></span>圖譜 Graph</div>
+        <div class="row muted"><span class="dot" style="background:#444"></span>價值 Value</div>
+        <div class="row muted"><span class="dot" style="background:#444"></span>重疊 Overlap</div>
+        <div class="row muted"><span class="dot" style="background:#444"></span>結構 Activity</div>
+      </div>
+    </div>
+    <div class="panel"><div class="cost"><span class="ico"></span><div><b>AI 成本</b><p>本月 TOKENS<br>累計 即時運算</p></div></div></div>
+    <div class="panel">
+      <div class="row"><span class="dot" style="background:var(--accent)"></span>claude<span class="num">HIGH</span></div>
+      <div class="row"><span class="dot" style="background:var(--good)"></span>codex<span class="num muted">MID</span></div>
+      <div class="row"><span class="dot" style="background:var(--blue)"></span>gemini<span class="num muted">LOW</span></div>
+    </div>
+    <div class="panel">
+      <div class="eyebrow">互動率 · FOCUS</div>
+      <div class="row">在線<span class="num" style="color:var(--good)">11</span></div>
+      <div class="row">活躍節點<span class="num" style="color:var(--accent)">233</span></div>
+      <div class="row">待命<span class="num">0</span></div>
+      <div class="row">NODE / NTE<span class="num" style="color:var(--accent)">7,800</span></div>
+    </div>
+  </div>
+
+  <div id="right" class="hud">
+    <div class="panel"><div class="eyebrow">claude · the-assistant</div><div class="msg"><b>claude</b> 已連上 4 個新節點，社群數據抓取中…</div></div>
+    <div class="panel"><div class="row"><b>RunBoss</b><span class="num" style="color:var(--good)">NTE 7,800</span></div></div>
+    <div class="panel"><div class="eyebrow">Command Deck</div>
+      <div class="deck"><button>建立節點</button><button>導入社群</button><button>重算佈局</button><button>聚類分析</button><button>價值疊圖</button><button>匯出報告</button></div></div>
+  </div>
+
+  <div id="chat" class="hud"><div class="panel">
+    <div class="bubble"><b>兄弟起床啦！</b>我把社群數據先抓出來了，從目前的節點密度來看，今天大概有 2,180 個新連線。RunBoss 說 MRR 衝到 7,800，要不要先看一下 welldone.ai 的圖譜結構？</div>
+    <div id="inputbar"><input placeholder="輸入指令給 operator…"><button class="send"></button></div>
+  </div></div>
+
+  <div id="clock" class="hud panel"><div class="t" id="cTime">02:43</div><div class="s" id="cSec">07</div></div>
+  <div id="density" class="hud"><span>7,800</span><div class="bar"><div class="fill"></div></div><span>DENSITY</span></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+const cv=document.getElementById('gl');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setClearColor(0x05060a,0);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,1,5000);
+camera.position.set(0,40,640);
+
+document.getElementById('loading').style.display='none';
+
+// 真 Bloom
+const composer=new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),1.6,0.85,0.0);
+composer.addPass(bloom);
+function resize(){renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+
+// 柔光圓點貼圖
+function glowTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
+  const g=x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.3,'rgba(255,255,255,.5)');
+  g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,128,128);
+  const t=new THREE.Texture(c);t.needsUpdate=true;return t;}
+const TEX=glowTex();
+const PAL=[0xff8a3c,0x3cff9e,0x6b9bff,0xb86bff,0x46e0ff,0xffd23c].map(h=>new THREE.Color(h));
+
+// 節點
+const CLUSTERS=6,PER=42,N=CLUSTERS*PER;
+const nodes=[],centers=[];
+function gauss(){let s=0;for(let i=0;i<3;i++)s+=Math.random();return (s-1.5)/1.5;}
+for(let c=0;c<CLUSTERS;c++){const a=c/CLUSTERS*Math.PI*2;
+  centers.push(new THREE.Vector3(Math.cos(a)*260,(Math.random()-.5)*160,Math.sin(a)*200));}
+for(let i=0;i<N;i++){const ci=Math.floor(i/PER),ctr=centers[ci];
+  nodes.push({p:new THREE.Vector3(ctr.x+gauss()*70,ctr.y+gauss()*70,ctr.z+gauss()*70),
+    v:new THREE.Vector3(),ci});}
+
+// 連線
+const edges=[];
+for(let c=0;c<CLUSTERS;c++)for(let k=0;k<PER;k++){
+  edges.push([c*PER+k, c*PER+((k+1+(Math.random()*5|0))%PER)]);}
+for(let e=0;e<24;e++)edges.push([Math.random()*N|0,Math.random()*N|0]);
+
+const pos=new Float32Array(N*3),col=new Float32Array(N*3);
+const pGeo=new THREE.BufferGeometry();
+pGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+pGeo.setAttribute('color',new THREE.BufferAttribute(col,3));
+const pMat=new THREE.PointsMaterial({size:22,map:TEX,vertexColors:true,transparent:true,
+  blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+const points=new THREE.Points(pGeo,pMat);scene.add(points);
+
+const ePos=new Float32Array(edges.length*2*3),eCol=new Float32Array(edges.length*2*3);
+const eGeo=new THREE.BufferGeometry();
+eGeo.setAttribute('position',new THREE.BufferAttribute(ePos,3));
+eGeo.setAttribute('color',new THREE.BufferAttribute(eCol,3));
+const eMat=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.18,
+  blending:THREE.AdditiveBlending,depthWrite:false});
+scene.add(new THREE.LineSegments(eGeo,eMat));
+
+// 力導向模擬（斥力 + 邊彈簧 + 向心 + 阻尼）
+function simStep(){
+  for(let i=0;i<N;i++){const a=nodes[i];
+    for(let j=i+1;j<N;j++){const b=nodes[j];
+      const dx=a.p.x-b.p.x,dy=a.p.y-b.p.y,dz=a.p.z-b.p.z;
+      let d2=dx*dx+dy*dy+dz*dz+0.1;const f=900/d2;const d=Math.sqrt(d2);
+      const fx=dx/d*f,fy=dy/d*f,fz=dz/d*f;
+      a.v.x+=fx;a.v.y+=fy;a.v.z+=fz;b.v.x-=fx;b.v.y-=fy;b.v.z-=fz;}}
+  for(const[ai,bi]of edges){const a=nodes[ai],b=nodes[bi];
+    const dx=b.p.x-a.p.x,dy=b.p.y-a.p.y,dz=b.p.z-a.p.z;const k=0.006;
+    a.v.x+=dx*k;a.v.y+=dy*k;a.v.z+=dz*k;b.v.x-=dx*k;b.v.y-=dy*k;b.v.z-=dz*k;}
+  for(const a of nodes){a.v.x-=a.p.x*0.0015;a.v.y-=a.p.y*0.0015;a.v.z-=a.p.z*0.0015;
+    a.v.multiplyScalar(0.86);a.p.add(a.v);}
+}
+for(let w=0;w<60;w++)simStep(); // 暖機讓佈局先收斂
+
+let last=performance.now(),ang=0,theme=0;
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
+  simStep();
+  theme=(Math.sin(t*0.12)+1)/2;
+  for(let i=0;i<N;i++){const a=nodes[i];
+    pos[i*3]=a.p.x;pos[i*3+1]=a.p.y;pos[i*3+2]=a.p.z;
+    const warm=PAL[a.ci],cool=PAL[(a.ci+2)%6];
+    col[i*3]=warm.r*(1-theme)+cool.r*theme;
+    col[i*3+1]=warm.g*(1-theme)+cool.g*theme;
+    col[i*3+2]=warm.b*(1-theme)+cool.b*theme;}
+  pGeo.attributes.position.needsUpdate=true;pGeo.attributes.color.needsUpdate=true;
+  for(let e=0;e<edges.length;e++){const[ai,bi]=edges[e],a=nodes[ai],b=nodes[bi];
+    ePos[e*6]=a.p.x;ePos[e*6+1]=a.p.y;ePos[e*6+2]=a.p.z;
+    ePos[e*6+3]=b.p.x;ePos[e*6+4]=b.p.y;ePos[e*6+5]=b.p.z;
+    eCol[e*6]=col[ai*3];eCol[e*6+1]=col[ai*3+1];eCol[e*6+2]=col[ai*3+2];
+    eCol[e*6+3]=col[bi*3];eCol[e*6+4]=col[bi*3+1];eCol[e*6+5]=col[bi*3+2];}
+  eGeo.attributes.position.needsUpdate=true;eGeo.attributes.color.needsUpdate=true;
+  ang+=dt*0.06;camera.position.x=Math.sin(ang)*640;camera.position.z=Math.cos(ang)*640;
+  camera.position.y=60+Math.sin(t*0.1)*40;camera.lookAt(0,0,0);
+  composer.render();requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// chips
+const NAMES=['wsio-bbq-bf','line-assistant','welldone-website','convoy','dazhugong','matchboard','welldrge','lyric-rae','welcome-onboard','welldone-ig'];
+const top=document.getElementById('top');
+NAMES.forEach((nm,i)=>{const c=PAL[i%6],d=document.createElement('div');d.className='chip';
+  d.innerHTML=`<span class="dot" style="background:#${c.getHexString()}"></span>${nm}<span class="num">${(200+(Math.random()*1600|0)).toLocaleString()} NODES</span>`;
+  top.appendChild(d);});
+const cTime=document.getElementById('cTime'),cSec=document.getElementById('cSec');
+const tfmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+function tickClock(){const p={};for(const x of tfmt.formatToParts(new Date()))p[x.type]=x.value;
+  cTime.textContent=`${p.hour}:${p.minute}`;cSec.textContent=p.second;}   // 台北時間 UTC+8
+tickClock();setInterval(tickClock,1000);
+</script>
+</body>
+</html>
